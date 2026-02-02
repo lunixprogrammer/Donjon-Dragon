@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ma Table D&D Virtuelle</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 300px;
+            background-color: #34495e;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        h1, h2, h3 {
+            margin-top: 0;
+            color: #f1c40f;
+        }
+
+        .control-group {
+            background: #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #7f8c8d;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], input[type="file"], input[type="number"] {
+            width: 100%;
+            padding: 6px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: none;
+            box-sizing: border-box;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            font-size: 13px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        button:hover {
+            background-color: #c0392b;
+        }
+        
+        button.secondary {
+            background-color: #95a5a6;
+        }
+        button.secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        #map-area {
+            flex-grow: 1;
+            position: relative;
+            background-color: #2c3e50;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        #world-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200px; 
+            height: 200px;
+            transform-origin: 0 0;
+        }
+        
+        #map-area:active {
+        }
+
+        #map-image {
+            display: block;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .token {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #f1c40f;
+            position: absolute;
+            background-size: cover;
+            background-position: center;
+            background-color: #34495e;
+            cursor: move;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: transform 0.1s, box-shadow 0.1s, top 0.1s ease-out, left 0.1s ease-out;
+        }
+        
+        .token:hover {
+            transform: scale(1.2);
+            box-shadow: 0 5px 8px rgba(0,0,0,0.4);
+            z-index: 101;
+        }
+
+        .token.selected {
+            border-color: #3498db;
+            box-shadow: 0 0 10px #3498db, 0 0 5px white;
+            z-index: 102;
+        }
+
+        .token-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-size: 10px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        :root {
+            --grid-size: 30px;
+        }
+
+        .token.medium { width: var(--grid-size); height: var(--grid-size); }
+        .token.large { width: calc(var(--grid-size) * 2); height: calc(var(--grid-size) * 2); }
+        .token.huge { width: calc(var(--grid-size) * 3); height: calc(var(--grid-size) * 3); }
+        .token.size-4 { width: calc(var(--grid-size) * 4); height: calc(var(--grid-size) * 4); }
+        .token.size-5 { width: calc(var(--grid-size) * 5); height: calc(var(--grid-size) * 5); }
+        .token.size-6 { width: calc(var(--grid-size) * 6); height: calc(var(--grid-size) * 6); }
+        .token.size-7 { width: calc(var(--grid-size) * 7); height: calc(var(--grid-size) * 7); }
+        .token.size-8 { width: calc(var(--grid-size) * 8); height: calc(var(--grid-size) * 8); }
+        .token.size-9 { width: calc(var(--grid-size) * 9); height: calc(var(--grid-size) * 9); }
+        .token.size-10 { width: calc(var(--grid-size) * 10); height: calc(var(--grid-size) * 10); }
+
+        #instructions {
+            font-size: 0.85em;
+            color: #bdc3c7;
+            margin-top: auto;
+            border-top: 1px solid #7f8c8d;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h1>🐉 Ma Table D&D</h1>
+        
+        <div class="control-group">
+            <h3>🗺️ Carte</h3>
+            
+            <label for="defaultMaps">Cartes pré-créées</label>
+            <select id="defaultMaps" style="width:100%; padding: 8px; margin-bottom: 10px;">
+                <option value="">-- Choisir une carte --</option>
+                <option value="maps/donjon_complexe.svg">🏰 Grand Donjon Souterrain</option>
+                <option value="maps/labyrinthe_eau.svg">💧 Labyrinthe du Canal</option>
+            </select>
+
+            <label for="mapUpload">Ou charger votre image</label>
+            <input type="file" id="mapUpload" accept="image/*">
+            
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 12px; margin-bottom: 2px;">Largeur (px)</label>
+                    <input type="number" id="mapWidth" placeholder="Largeur">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 12px; margin-bottom: 2px;">Hauteur (px)</label>
+                    <input type="number" id="mapHeight" placeholder="Hauteur">
+                </div>
+            </div>
+            
+            <label style="font-size: 12px; margin-bottom: 2px;">Échelle (Nb. cases en largeur)</label>
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <input type="number" id="gridColumns" value="30" min="5" style="margin-bottom: 0;">
+                <button class="secondary" onclick="applyMapSettings()" style="width: auto; margin-bottom: 0;">Appliquer tout</button>
+            </div>
+
+            <button class="secondary" onclick="resetMap()">Réinitialiser la grille</button>
+        </div>
+
+        <div class="control-group">
+            <h3>👤 Nouveau Personnage</h3>
+            <label for="charName">Nom du héros/monstre</label>
+            <input type="text" id="charName" placeholder="Ex: Gobelin n°1">
+            
+            <label for="charImage">Avatar (Image PNG/JPG)</label>
+            <input type="file" id="charImage" accept="image/*">
+            
+            <label>Taille :</label>
+            <select id="charSize" style="width:100%; padding: 8px; margin-bottom: 10px;">
+                <option value="medium">Moyenne (1 case)</option>
+                <option value="large">Grande (2x2 cases)</option>
+                <option value="huge">Immense (3x3 cases)</option>
+                <option value="size-4">Gargantuesque (4x4)</option>
+                <option value="size-5">Colossale (5x5)</option>
+                <option value="size-6">Titanesque (6x6)</option>
+                <option value="size-7">7x7 Cases</option>
+                <option value="size-8">8x8 Cases</option>
+                <option value="size-9">9x9 Cases</option>
+                <option value="size-10">Légendaire (10x10)</option>
+            </select>
+
+            <button onclick="addCharacter()">Ajouter sur la carte</button>
+        </div>
+
+        <div id="instructions">
+            <p><strong>Comment jouer :</strong></p>
+            <ul>
+                <li><strong>Déplacer :</strong> Cliquez et glissez les pions.</li>
+                <li><strong>Fond :</strong> Chargez n'importe quelle image de carte.</li>
+                <li><strong>Supprimer :</strong> Double-cliquez sur un pion.</li>
+                <li><strong>Créateur :</strong> Lunix (Syndicate WL GTA RP) </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="map-area">
+        <div id="world-container">
+            <img id="map-image" src="" alt="" style="display:none;">
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123) { return false; }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; }
+            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; }
+        }
+
+        const mapArea = document.getElementById('map-area');
+        const worldContainer = document.getElementById('world-container');
+        const mapImage = document.getElementById('map-image');
+        const defaultMapsSelect = document.getElementById('defaultMaps');
+        const mapWidthInput = document.getElementById('mapWidth');
+        const mapHeightInput = document.getElementById('mapHeight');
+        const gridColumnsInput = document.getElementById('gridColumns');
+        
+        let selectedToken = null;
+        let GRID_SIZE = 30;
+
+        mapImage.onload = function() {
+            mapWidthInput.value = mapImage.naturalWidth || 2000;
+            mapHeightInput.value = mapImage.naturalHeight || 2000;
+            const defaultGridSize = 50;
+            const cols = Math.round(mapImage.naturalWidth / defaultGridSize) || 30;
+            gridColumnsInput.value = cols;
+            applyMapSettings();
+        };
+
+        function applyMapSettings() {
+            const w = parseInt(mapWidthInput.value) || 2000;
+            const h = parseInt(mapHeightInput.value) || 2000;
+            const cols = parseInt(gridColumnsInput.value) || 30;
+            mapImage.style.width = w + 'px';
+            mapImage.style.height = h + 'px';
+            worldContainer.style.width = w + 'px';
+            worldContainer.style.height = h + 'px';
+            GRID_SIZE = w / cols;
+            updateGridOverlay(GRID_SIZE);
+            updateTokensScale();
+        }
+
+        let gridOverlay = document.createElement('div');
+        gridOverlay.style.position = 'absolute';
+        gridOverlay.style.top = '0'; gridOverlay.style.left = '0';
+        gridOverlay.style.right = '0'; gridOverlay.style.bottom = '0';
+        gridOverlay.style.pointerEvents = 'none';
+        gridOverlay.style.zIndex = '1';
+        worldContainer.appendChild(gridOverlay);
+
+        function updateGridOverlay(size) {
+            gridOverlay.style.backgroundImage = `
+                linear-gradient(#7f8c8d 1px, transparent 1px),
+                linear-gradient(90deg, #7f8c8d 1px, transparent 1px)
+            `;
+            gridOverlay.style.backgroundSize = `${size}px ${size}px`;
+        }
+        
+        function updateTokensScale() {
+            document.documentElement.style.setProperty('--grid-size', GRID_SIZE + 'px');
+        }
+
+        let isPanning = false;
+        let startPanX = 0;
+        let startPanY = 0;
+        let currentPanX = 0;
+        let currentPanY = 0;
+
+        mapArea.addEventListener('mousedown', function(e) {
+            if (!e.target.closest('.token')) {
+                isPanning = true;
+                startPanX = e.clientX - currentPanX;
+                startPanY = e.clientY - currentPanY;
+                mapArea.style.cursor = 'grabbing';
+            }
+        });
+
+        window.addEventListener('mouseup', function() {
+            isPanning = false;
+            mapArea.style.cursor = 'grab';
+        });
+
+        window.addEventListener('mousemove', function(e) {
+            if (isPanning) {
+                e.preventDefault();
+                currentPanX = e.clientX - startPanX;
+                currentPanY = e.clientY - startPanY;
+                worldContainer.style.transform = `translate(${currentPanX}px, ${currentPanY}px)`;
+            }
+        });
+
+        // --- Gestion de la Carte (Fond) ---
+        
+        // 1. Sélection d'une carte par défaut
+        defaultMapsSelect.addEventListener('change', function(e) {
+            const selectedMap = e.target.value;
+            if (selectedMap) {
+                mapImage.src = selectedMap;
+                mapImage.style.display = 'block';
+                // Réinitialiser l'input file pour éviter la confusion
+                document.getElementById('mapUpload').value = '';
+            }
+        });
+
+        // 2. Upload personnalisé
+        document.getElementById('mapUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    mapImage.src = event.target.result;
+                    mapImage.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+                // Réinitialiser le select
+                defaultMapsSelect.value = "";
+            }
+        });
+
+        function resetMap() {
+            mapImage.src = '';
+            mapImage.style.display = 'none';
+            defaultMapsSelect.value = "";
+            document.getElementById('mapUpload').value = '';
+        }
+
+        // Gestion de la sélection (clic ailleurs désélectionne)
+        mapArea.addEventListener('click', function(e) {
+            // Si on clique sur le fond (pas sur un token), on désélectionne
+            if(e.target === mapArea || e.target === mapImage) {
+                selectToken(null);
+            }
+        });
+
+        function selectToken(token) {
+            // Retirer la classe 'selected' de l'ancien
+            if (selectedToken) {
+                selectedToken.classList.remove('selected');
+            }
+            
+            selectedToken = token;
+            
+            // Ajouter la classe au nouveau
+            if (selectedToken) {
+                selectedToken.classList.add('selected');
+            }
+        }
+
+        // --- Gestion des Personnages ---
+        function addCharacter() {
+            const nameInput = document.getElementById('charName');
+            const fileInput = document.getElementById('charImage');
+            const sizeInput = document.getElementById('charSize');
+            
+            const name = nameInput.value || 'Inconnu';
+            const size = sizeInput.value;
+            const file = fileInput.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    createToken(name, e.target.result, size);
+                }
+                reader.readAsDataURL(file);
+            } else {
+                // Créer un token sans image (avec une couleur)
+                createToken(name, null, size); 
+            }
+            
+            // Nettoyer les champs pour le suivant
+            nameInput.value = '';
+            fileInput.value = '';
+        }
+
+        function createToken(name, imageUrl, size) {
+            const token = document.createElement('div');
+            token.className = `token ${size}`;
+            
+            // Apparition un peu décalée pour ne pas les empiler exactement au même endroit
+            // On calcule la position en cases (Grid Coordinates)
+            const gridX = Math.floor((50 + Math.random() * 100) / GRID_SIZE);
+            const gridY = Math.floor((50 + Math.random() * 100) / GRID_SIZE);
+            
+            // On sauvegarde la position logique
+            token.dataset.gridX = gridX;
+            token.dataset.gridY = gridY;
+
+            token.style.left = (gridX * GRID_SIZE) + 'px';
+            token.style.top = (gridY * GRID_SIZE) + 'px';
+            
+            if (imageUrl) {
+                token.style.backgroundImage = `url('${imageUrl}')`;
+            } else {
+                // Générer une couleur aléatoire si pas d'image
+                const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+                token.style.backgroundColor = randomColor;
+                token.innerText = name.charAt(0).toUpperCase();
+                
+                // Style spécifique pour les tokens texte
+                token.style.display = 'flex';
+                token.style.alignItems = 'center';
+                token.style.justifyContent = 'center';
+                token.style.fontWeight = 'bold';
+                
+                // Ajuster la taille du texte selon la taille du token
+                if (size === 'medium') token.style.fontSize = '14px';
+                else if (size === 'large' || size === 'huge') token.style.fontSize = '24px';
+                else token.style.fontSize = '48px'; // Pour les très grands
+
+                token.style.color = 'white';
+                token.style.textShadow = '1px 1px 2px black';
+            }
+
+            // Étiquette du nom
+            const label = document.createElement('div');
+            label.className = 'token-label';
+            label.innerText = name;
+            token.appendChild(label);
+
+            // Clic pour sélectionner
+            token.addEventListener('click', function(e) {
+                e.stopPropagation(); // Évite de déclencher le click du mapArea
+                selectToken(token);
+            });
+
+            // Rendre dréplaçable
+            makeDraggable(token);
+            
+            // Suppression au double clic
+            token.addEventListener('dblclick', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if(confirm(`Voulez-vous retirer ${name} de la table ?`)) {
+                    if(selectedToken === token) selectedToken = null;
+                    token.remove();
+                }
+            });
+
+            worldContainer.appendChild(token);
+            // Sélectionner automatiquement le nouveau perso
+            selectToken(token);
+        }
+
+        // --- Clavier pour bouger les tokens ---
+        window.addEventListener('keydown', function(e) {
+            if (!selectedToken) return;
+            
+            // Empêcher le défilement de la page avec les flèches
+            if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+                e.preventDefault();
+            }
+
+            // Récupérer position grille ACTUELLE (si pas définie, on calcule depuis pixels)
+            let gx = parseInt(selectedToken.dataset.gridX);
+            let gy = parseInt(selectedToken.dataset.gridY);
+            
+            // Fallback si data attributes manquants
+            if (isNaN(gx)) gx = Math.round(selectedToken.offsetLeft / GRID_SIZE);
+            if (isNaN(gy)) gy = Math.round(selectedToken.offsetTop / GRID_SIZE);
+
+            // Limites en cases
+            const maxCols = Math.floor((worldContainer.offsetWidth - selectedToken.offsetWidth) / GRID_SIZE);
+            const maxRows = Math.floor((worldContainer.offsetHeight - selectedToken.offsetHeight) / GRID_SIZE);
+            
+            let newGx = gx;
+            let newGy = gy;
+
+            switch(e.code) {
+                case 'ArrowUp':    newGy--; break;
+                case 'ArrowDown':  newGy++; break;
+                case 'ArrowLeft':  newGx--; break;
+                case 'ArrowRight': newGx++; break;
+            }
+            
+            // Vérification des limites
+            if (newGx < 0) newGx = 0;
+            // if (newGx > maxCols) newGx = maxCols; // Peut bloquer si le token est très grand par rapport à la grille. On laisse une petite marge.
+            if (newGy < 0) newGy = 0;
+            // if (newGy > maxRows) newGy = maxRows;
+
+            // Appliquer nouvelle position
+            selectedToken.dataset.gridX = newGx;
+            selectedToken.dataset.gridY = newGy;
+            selectedToken.style.left = (newGx * GRID_SIZE) + 'px';
+            selectedToken.style.top = (newGy * GRID_SIZE) + 'px';
+        });
+
+        // --- Logique Drag & Drop (Souris) ---
+        function makeDraggable(elmnt) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            
+            elmnt.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // Position curseur initiale
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // Calcul nouvelle position
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                let newTop = elmnt.offsetTop - pos2;
+                let newLeft = elmnt.offsetLeft - pos1;
+                
+                // Limites
+                const maxW = worldContainer.offsetWidth - elmnt.offsetWidth;
+                const maxH = worldContainer.offsetHeight - elmnt.offsetHeight;
+                
+                // Appliquer les bornes
+                if (newTop < 0) newTop = 0;
+                if (newTop > maxH) newTop = maxH;
+                if (newLeft < 0) newLeft = 0;
+                if (newLeft > maxW) newLeft = maxW;
+                
+                // Appliquer
+                elmnt.style.top = newTop + "px";
+                elmnt.style.left = newLeft + "px";
+            }
+
+            function closeDragElement() {
+                // Arrêt du déplacement
+                document.onmouseup = null;
+                document.onmousemove = null;
+
+                // SNAP TO GRID au relâchement
+                // On calcule la case la plus proche
+                const rawX = elmnt.offsetLeft;
+                const rawY = elmnt.offsetTop;
+                
+                const gx = Math.round(rawX / GRID_SIZE);
+                const gy = Math.round(rawY / GRID_SIZE);
+                
+                // On met à jour les données et la position visuelle
+                elmnt.dataset.gridX = gx;
+                elmnt.dataset.gridY = gy;
+                elmnt.style.left = (gx * GRID_SIZE) + 'px';
+                elmnt.style.top = (gy * GRID_SIZE) + 'px';
+            }
+        }
+    </script>
+</body>
+</html>

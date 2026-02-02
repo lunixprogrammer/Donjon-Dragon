@@ -1,0 +1,31 @@
+# Operating system
+Thumbs.db
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Node / dependency folders
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# Environment files
+.env
+
+# Temporary files
+*.tmp
+*.swp
+
+# OneDrive/temp files
+~$*
